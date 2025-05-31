@@ -1,0 +1,7 @@
+Name,Preferences
+Alice,Bob;Charlie
+Bob,Alice;David
+Charlie,Alice
+David,Bob;Eve
+Eve,David
+Frank,Alice;Bob;Charlie;David;Eve;Frank

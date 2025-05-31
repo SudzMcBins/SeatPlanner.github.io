@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeatPlanner Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Keep basic heights */
+        #app-header { height: 56px; /* Tailwind h-14 */ }
+
+        /* --- Responsive Adjustments --- */
+
+        /* Side Panel: Full width on mobile, fixed width on medium+ screens */
+        /* #side-panel { width: 256px; } */ /* Removed fixed width here, handled by Tailwind */
+
+        /* Main Editor Content: Remove fixed minimums, let it be flexible */
+        #main-editor-content {
+             /* min-height: 1024px; */ /* REMOVED */
+             /* min-width: 1024px; */  /* REMOVED */
+             /* Added overflow auto to handle its own content potentially overflowing */
+             overflow: auto;
+        }
+
+        /* Classroom Wrapper: Remove fixed min/max, allow scrolling */
+        #classroom-wrapper {
+            /* resize: both; */ /* Removed - not mobile friendly */
+            overflow: auto; /* Ensure scrolling works */
+            /* min-height: 300px; */ /* REMOVED */
+            /* max-height: 1024px; */ /* REMOVED */
+            /* min-width: 300px; */ /* REMOVED */
+            /* max-width: 1024px; */ /* REMOVED */
+            border: 1px solid #e5e7eb; /* border-gray-200 */
+            position: relative; /* Needed for absolute positioning of classroom */
+            /* Added flex-1 to make it grow within main-editor-content */
+            flex: 1;
+        }
+
+        /* Classroom: Give it a reasonable minimum size so it's scrollable if needed */
+        #classroom {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            overflow: hidden; /* Prevent desks going outside boundary visually during drag */
+            /* Add a min size for content */
+            min-width: 300px; /* Example: Ensures horizontal scroll if needed */
+            min-height: 300px; /* Example: Ensures vertical scroll if needed */
+        }
+
+        /* --- Desk Styles (No changes needed for responsiveness) --- */
+        .desk {
+            width: 100px; height: 60px; cursor: grab; position: absolute;
+            user-select: none; touch-action: none; transition: transform 0.1s ease-out, box-shadow 0.1s ease-out, background-color 0.2s, border-color 0.2s;
+            background-color: #bfdbfe; border: 2px solid #93c5fd; border-radius: 0.375rem;
+            display: flex; align-items: center; justify-content: center; padding: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); transform-origin: center center;
+        }
+        .desk.dragging {
+            cursor: grabbing; opacity: 0.85; z-index: 1000;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2); background-color: #93c5fd; border-color: #374151;
+        }
+        .desk.selected {
+            border-color: #fbbf24; box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.5); z-index: 999;
+        }
+        .desk.thin { padding: 0; }
+        .desk .desk-name-display {
+            pointer-events: none; position: absolute; left: 50%; top: 50%;
+            transform: translate(-50%, -50%); z-index: 5; text-align: center;
+            font-size: 11px; padding: 0px 5px; border-style: hidden; border-radius: 0.25rem;
+            background-color: rgba(255, 255, 255, 0.7); color: #374151; white-space: nowrap;
+        }
+
+        /* --- Side Panel Draggable Item Styles (No changes needed) --- */
+        .draggable-item {
+            cursor: grab; border: 1px solid #d1d5db; padding: 8px; margin-bottom: 8px;
+            border-radius: 0.375rem; background-color: #f9fafb; text-align: center;
+            font-size: 0.875rem; transition: background-color 0.2s; display: flex;
+            align-items: center; justify-content: center; min-height: 50px;
+        }
+        .draggable-item:hover { background-color: #e5e7eb; }
+        .draggable-item:active { cursor: grabbing; background-color: #d1d5db; }
+        .draggable-item[data-type="round-table"] {
+             border-radius: 50%; width: 60px; height: 60px; padding: 0; margin-left: auto; margin-right: auto;
+        }
+        .draggable-item[data-type="pod-desk"] { background-color: #d1fae5; border-color: #6ee7b7; }
+
+        /* --- Edit Panel Styles (No changes needed) --- */
+        #edit-panel label {
+            display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500; color: #4b5563;
+        }
+        #edit-panel input[type="text"],
+        #edit-panel input[type="number"] {
+            width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;
+            font-size: 0.875rem; margin-bottom: 0.75rem; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+        }
+        #edit-panel input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); }
+        #edit-panel .edit-section-title { font-weight: 600; color: #374151; margin-bottom: 0.5rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem; }
+        #edit-panel button { width: 100%; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; transition: background-color 0.2s; }
+
+        #room-library input[type="number"],
+        #room-library input[type="text"] {
+            width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;
+            font-size: 0.875rem; margin-bottom: 0.75rem; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+        }
+        #room-library input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); }
+        #room-library button { width: 100%; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; transition: background-color 0.2s; }
+
+        /* --- Other Styles (Keep as is, unless specific issues arise) --- */
+        .clicked { background-color: #374151; border-color: #42a5f5; } /* Adjusted bg slightly */
+        #nothing { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #nothing.hidden { display: none; }
+        #dropZone { border: 3px dashed #ccc; padding: 30px; text-align: center; color: #aaa; transition: border-color 0.3s, background-color 0.3s; background-color: #f9fafb; border-radius: 0.5rem; }
+        #dropZone.dragover { border-color: #3b82f6; background-color: #eff6ff; }
+        #optimizationStatus { min-height: 1.5em; margin-top: 10px; font-style: italic; color: #6b7280; }
+        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.8); display: flex; justify-content: center; align-items: center; z-index: 9999; font-size: 1.2em; color: #333; }
+        #loadingOverlay.hidden, .file.hidden, .build.hidden, .Assign.hidden, .View.hidden { display: none; }
+        #editor-controls button { padding: 0.3rem 0.8rem; font-size: 0.875rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        #optimization-section button { padding: 0.5rem 1.2rem; }
+        #switch-container { display: flex; align-items: center; justify-content: right; }
+        .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; -webkit-transition: .4s; transition: .4s; outline: 2px solid #1f2937; outline-offset: -1px; }
+        .slider:before { position: absolute; content: ""; height: 23px; width: 23px; left: 6px; bottom: 4px; background-color: white; -webkit-transition: .4s; transition: .4s; }
+        input:checked + .slider { background-color: #3b82f6; }
+        input:focus + .slider { box-shadow: 0 0 1px #3b82f6; }
+        input:checked + .slider:before { -webkit-transform: translateX(26px); -ms-transform: translateX(26px); transform: translateX(26px); }
+        .slider.round { border-radius: 34px; }
+        .slider.round:before { border-radius: 50%; }
+        @keyframes copy-flash-anim { 0%, 100% { border-color: #fbbf24; box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.5); } 50% { box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.7); border-color: #3b82f6; } }
+        .desk.copied-flash { animation: copy-flash-anim 0.4s ease-out; } /* Adjusted duration */
+        #grid-mode { margin-right: 8px; }
+
+
+
+        #dropZone {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col"> <!-- Added overflow-hidden to body -->
+
+    <!-- Header: Added flex-wrap for smaller screens -->
+    <header id="app-header" class="bg-gray-800 text-white flex flex-wrap items-center px-2 sm:px-4 shadow-md flex-shrink-0 z-10 h-auto min-h-[56px] md:h-14">
+         <div class="flex items-center py-2"> <!-- Added padding -->
+             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                 <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+             </svg>
+            <span class="font-bold text-lg">SeatPlanner</span>
+        </div>
+        <!-- Nav: Added py-1 for vertical spacing when wrapped -->
+        <nav class="flex flex-wrap space-x-1 ml-0 sm:ml-6 py-1">
+            <button id="file" class="flex flex-col items-center justify-center px-3 py-1 hover:bg-gray-700 rounded text-sm transition-colors duration-150">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l.117 .007a1 1 0 0 1 .876 .876l.007 .117v4l.005 .15a2 2 0 0 0 1.838 1.844l.157 .006h4l.117 .007a1 1 0 0 1 .876 .876l.007 .117v9a3 3 0 0 1 -2.824 2.995l-.176 .005h-10a3 3 0 0 1 -2.995 -2.824l-.005 -.176v-14a3 3 0 0 1 2.824 -2.995l.176 -.005h5z" /><path d="M19 7h-4l-.001 -4.001z" /></svg>
+                File
+            </button>
+             <button id="build" class="flex flex-col items-center justify-center px-3 py-1 hover:bg-gray-700 rounded text-sm transition-colors duration-150">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l18 0" /><path d="M3 7v1a3 3 0 0 0 6 0v-1m0 1a3 3 0 0 0 6 0v-1m0 1a3 3 0 0 0 6 0v-1h-18l2 -4h14l2 4" /><path d="M5 21l0 -10.15" /><path d="M19 21l0 -10.15" /><path d="M9 21v-4a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v4" /></svg>
+                Build
+            </button>
+            <button id="assign" class="flex flex-col items-center justify-center px-3 py-1 hover:bg-gray-700 rounded text-sm transition-colors duration-150">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 5h8" /><path d="M13 9h5" /><path d="M13 15h8" /><path d="M13 19h5" /><path d="M3 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" /><path d="M3 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" /></svg>
+                Assign
+            </button>
+            <button id="view" class="flex flex-col items-center justify-center px-3 py-1 hover:bg-gray-700 rounded text-sm transition-colors duration-150">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
+                View
+            </button>
+        </nav>
+         <div class="ml-auto hidden md:block"> <!-- Placeholder hidden on small screens --> </div>
+    </header>
+
+    <!-- Editor Controls Toolbar: Kept flex-wrap -->
+    <div id="editor-controls" class=" flex flex-col flex-shrink-0">
+        <!-- The individual toolbar sections should show/hide based on JS logic -->
+        <div class="file hidden p-2 border-b border-gray-200 bg-gray-50 flex flex-wrap gap-2 items-center flex-shrink-0">
+           <button id="saveLayoutBtn" title="Save Layout" class="bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition duration-150 ease-in-out flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" /></svg>Save Layout</button>
+           <button id="loadLayoutBtn" title="Load Layout" class="bg-purple-600 text-white rounded hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 transition duration-150 ease-in-out flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>Load Layout</button>
+           <button id="clearNamesBtn" title="Clear All Names" class="bg-yellow-500 text-white rounded hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 transition duration-150 ease-in-out flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Clear Names</button>
+           <button id="clearAllBtn" title="Clear All Desks" class="bg-red-600 text-white rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition duration-150 ease-in-out flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>Clear All</button>
+       </div>
+        <div class="build hidden p-2 border-b border-gray-200 bg-gray-50 flex flex-wrap gap-2 items-center flex-shrink-0">
+           <button id="makeRoomBtn" title="Make Room" class="bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 ease-in-out flex items-center">Make Room</button>
+           <button id="Desks&SeatsBtn" title="Desks & Seats" class="bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 ease-in-out flex items-center">Desks & Seats</button>
+           <div id="switch-container">
+               <p id="grid-mode">Grid Mode</p>
+               <label class="switch">
+                   <input type="checkbox">
+                   <span class="slider round"></span>
+               </label>
+           </div>
+       </div>
+        <div class="assign hidden p-2 border-b border-gray-200 bg-gray-50 flex flex-wrap gap-2 items-center flex-shrink-0">
+            <button id="optimizeBtn" title="Optimize Remaining" class="bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 ease-in-out flex items-center">Optimize Remaining</button>
+        </div>
+        <div class="view hidden p-2 border-b border-gray-200 bg-gray-50 flex flex-wrap gap-2 items-center flex-shrink-0">
+           <button id="simpleBtn" title="Simple" class="bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 ease-in-out flex items-center">Simple</button>
+       </div>
+   </div>
+
+    <!-- Main Body Layout: flex-col for mobile, md:flex-row for larger screens -->
+    <div class="flex flex-col md:flex-row flex-1"> <!-- Added overflow-hidden -->
+
+        <!-- Side Panel: Full width on mobile, w-64 on medium+ -->
+        <aside id="side-panel" class="w-full md:w-64 bg-gray-200 border-b md:border-b-0 md:border-r border-gray-300 p-4 overflow-y-auto flex-shrink-0 h-auto md:h-full">
+            <!-- Side panel content remains the same, ensure it scrolls vertically if needed -->
+            <div id="nothing">
+                <h1 class="font-semibold text-gray-700 mb-3 border-b pb-2">Tools will apear here</h1>
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="flex justify-center items-center h-16 w-16 text-gray-500 mb-4"
+                >
+                   <path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" />
+                </svg>
+            </div>
+
+            <div id="room-library">
+                <h2 class="text-base font-semibold text-gray-700 mb-3 border-b pb-2">Build Room</h2>
+                <div id="room-resize-controls" class="mb-3">
+                    <label for="classroom-width" class="block text-sm font-medium text-gray-700">Classroom Width (px):</label>
+                    <input type="number" id="classroom-width" value="800" min="300" class="mt-1 block w-full border-gray-300 rounded-md">
+                    <label for="classroom-height" class="block text-sm font-medium text-gray-700 mt-2">Classroom Height (px):</label>
+                    <input type="number" id="classroom-height" value="600" min="300" class="mt-1 block w-full border-gray-300 rounded-md">
+                    <button id="applyRoomSizeBtn" class="mt-2 bg-blue-600 text-white rounded hover:bg-blue-700 px-3 py-1">Apply</button>
+                </div>
+                <div class="space-y-2">
+                    <div class="draggable-item thin" draggable="true" data-type="smart-board" data-width="360" data-height="30" data-bg="#ffffff" data-border="#93c5fd">
+                        Smart-board
+                    </div>
+                    <div class="draggable-item thin" draggable="true" data-type="white-board" data-width="100" data-height="20" data-bg="#ffffff" data-border="#93c5fd">
+                        White-board
+                    </div>
+                    <div class="draggable-item" draggable="true" data-type="round-table" data-width="80" data-height="80" data-bg="#fee2e2" data-border="#fca5a5">
+                        Round Table
+                    </div>
+                     <div class="draggable-item" draggable="true" data-type="pod-desk" data-width="120" data-height="70" data-bg="#d1fae5" data-border="#6ee7b7">
+                        Pod Desk
+                    </div>
+                    <div class="draggable-item" draggable="true" data-type="chair" data-width="40" data-height="40" data-bg="#e0e7ff" data-border="#a5b4fc">
+                        Seat/Chair
+                    </div>
+                </div>
+            </div>
+
+            <div id="item-library">
+                <h2 class="text-base font-semibold text-gray-700 mb-3 border-b pb-2">Add Items</h2>
+                <div class="space-y-2">
+                    <div class="draggable-item" draggable="true" data-type="standard-desk" data-width="100" data-height="60" data-bg="#bfdbfe" data-border="#93c5fd">
+                        Std Desk
+                    </div>
+                    <div class="draggable-item" draggable="true" data-type="small-desk" data-width="80" data-height="50" data-bg="#bfdbfe" data-border="#93c5fd">
+                        Small Desk
+                    </div>
+                    <div class="draggable-item" draggable="true" data-type="round-table" data-width="80" data-height="80" data-bg="#fee2e2" data-border="#fca5a5">
+                        Round Table
+                    </div>
+                     <div class="draggable-item" draggable="true" data-type="pod-desk" data-width="120" data-height="70" data-bg="#d1fae5" data-border="#6ee7b7">
+                        Pod Desk
+                    </div>
+                    <div class="draggable-item" draggable="true" data-type="chair" data-width="40" data-height="40" data-bg="#e0e7ff" data-border="#a5b4fc">
+                        Seat/Chair
+                    </div>
+                </div>
+            </div>
+
+            <div id="edit-panel" class="hidden">
+                 <h2 class="text-base font-semibold text-gray-700 mb-3 border-b pb-2">Edit Item</h2>
+                 <input type="hidden" id="edit-item-id">
+                 <div class="space-y-3">
+                     <div>
+                         <label for="edit-name">Display Name:</label>
+                         <input type="text" id="edit-name" placeholder="Enter name...">
+                     </div>
+                     <div>
+                        <label for="edit-rotation">Rotation (°):</label>
+                        <input type="number" id="edit-rotation" min="0" max="359" step="1" value="0">
+                    </div>
+                    <div>
+                        <label for="edit-width">Width (px):</label>
+                        <input type="number" id="edit-width" min="20" step="1">
+                    </div>
+                    <div>
+                        <label for="edit-height">Height (px):</label>
+                        <input type="number" id="edit-height" min="20" step="1">
+                    </div>
+                    <div class="pt-2 border-t border-gray-300">
+                         <button id="deleteItemBtn" class="bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50">
+                             Delete Selected Item
+                         </button>
+                    </div>
+                    <div class="pt-2">
+                         <button id="deselectBtn" class="bg-gray-500 text-white hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50">
+                             Done Editing (Deselect)
+                         </button>
+                    </div>
+                 </div>
+            </div>
+
+             <!-- NOTE: This Optimization section seems duplicated below. Assuming it belongs here in the side panel. -->
+             <div id="optimization-section" class="p-4 mt-4 border border-gray-200 rounded-lg bg-gray-50 shadow-sm flex-shrink-0">
+                <h2 class="text-lg font-semibold text-gray-700 mb-3 text-center">Optimize Seating</h2>
+                <p class="text-center text-xs text-gray-500 mb-3">
+                    Drag & drop a CSV file with student preferences below.
+                    <strong class="text-gray-600">Format:</strong> 'Name', 'Preferences' (comma/semicolon separated names).
+                    <a href="example_preferences.csv" download class="text-blue-600 hover:underline ml-1">Example CSV</a>
+                </p>
+                <div id="dropZone" class="mb-3">
+                    Drag & Drop Preferences CSV Here
+                    <div id="fileName" class="mt-1 text-xs text-gray-600 font-medium"></div>
+                </div>
+                <div class="text-center mb-3">
+                    <button id="quickOptimizeBtn" class="bg-teal-600 text-white rounded-lg shadow hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-50 transition duration-150 ease-in-out flex items-center justify-center mx-auto">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#FFFF00"><path d="M13 2l.018 .001l.016 .001l.083 .005l.011 .002h.011l.038 .009l.052 .008l.016 .006l.011 .001l.029 .011l.052 .014l.019 .009l.015 .004l.028 .014l.04 .017l.021 .012l.022 .01l.023 .015l.031 .017l.034 .024l.018 .011l.013 .012l.024 .017l.038 .034l.022 .017l.008 .01l.014 .012l.036 .041l.026 .027l.006 .009c.12 .147 .196 .322 .218 .513l.001 .012l.002 .041l.004 .064v6h5a1 1 0 0 1 .868 1.497l-.06 .091l-8 11c-.568 .783 -1.808 .38 -1.808 -.588v-6h-5a1 1 0 0 1 -.868 -1.497l.06 -.091l8 -11l.01 -.013l.018 -.024l.033 -.038l.018 -.022l.009 -.008l.013 -.014l.04 -.036l.028 -.026l.008 -.006a1 1 0 0 1 .402 -.199l.011 -.001l.027 -.005l.074 -.013l.011 -.001l.041 -.002z" /></svg>
+                        Quick Optimize
+                    </button>
+                </div>
+                <div class="text-center">
+                    <button id="deepOptimizeBtn" class="bg-teal-600 text-white rounded-lg shadow hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-50 transition duration-150 ease-in-out flex items-center justify-center mx-auto">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3a1 1 0 0 1 .993 .883l.007 .117v3.171a3.001 3.001 0 0 1 0 5.658v7.171a1 1 0 0 1 -1.993 .117l-.007 -.117v-7.17a3.002 3.002 0 0 1 -1.995 -2.654l-.005 -.176l.005 -.176a3.002 3.002 0 0 1 1.995 -2.654v-3.17a1 1 0 0 1 1 -1z" /><path d="M12 3a1 1 0 0 1 .993 .883l.007 .117v9.171a3.001 3.001 0 0 1 0 5.658v1.171a1 1 0 0 1 -1.993 .117l-.007 -.117v-1.17a3.002 3.002 0 0 1 -1.995 -2.654l-.005 -.176l.005 -.176a3.002 3.002 0 0 1 1.995 -2.654v-9.17a1 1 0 0 1 1 -1z" /><path d="M18 3a1 1 0 0 1 .993 .883l.007 .117v.171a3.001 3.001 0 0 1 0 5.658v10.171a1 1 0 0 1 -1.993 .117l-.007 -.117v-10.17a3.002 3.002 0 0 1 -1.995 -2.654l-.005 -.176l.005 -.176a3.002 3.002 0 0 1 1.995 -2.654v-.17a1 1 0 0 1 1 -1z" /></svg>
+                        Deep Optimize     
+                    </button>
+                </div>
+                <div id="optimizationStatus" class="text-center text-sm mt-2"></div>
+                <p class="text-center text-s mt-3">
+                    Need help getting CSV file? <a href="tutorial.html" class="text-blue-600 hover:underline">Click here</a>
+                </p>
+            </div>
+
+        </aside>
+
+        <!-- Main Editor Area: Takes remaining space -->
+        <main id="main-editor" class="flex-1 flex flex-col bg-white"> <!-- Added overflow-hidden -->
+
+
+            <!-- Main Content Area: Flex column, takes remaining space -->
+            <div id="main-editor-content" class="flex-1 flex flex-col p-4 space-y-4 overflow-auto"> <!-- Added overflow-auto -->
+
+                <!-- Resizable Classroom Wrapper: flex-1 makes it grow -->
+                <div id="classroom-wrapper" class="relative border border-gray-300 rounded-lg shadow-sm bg-gray-50 flex-1 overflow-auto"> <!-- Added flex-1 and overflow-auto -->
+                    <div id="classroom" class="absolute top-0 left-0 w-full h-full">
+                        <!-- Classroom grid/desks -->
+                    </div>
+                </div>
+
+                 <!-- Removed the duplicate optimization section from here -->
+
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Loading Overlay (Keep As Is) -->
+    <div id="loadingOverlay" class="hidden">
+         Processing... <svg class="animate-spin ml-2 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle> <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+    </div>
+
+    <!-- Reference the script file (make sure its path is correct) -->
+    <script src="script.js"></script>
+
+</body>
+</html>

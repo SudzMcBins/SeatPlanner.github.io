@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeatPlanner - Google Form Setup Tutorial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Copied styles from the reference index.html for brand consistency */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        #app-header { height: 56px; }
+        #main-editor-content { overflow: auto; }
+        #classroom-wrapper {
+            overflow: auto;
+            border: 1px solid #e5e7eb; /* border-gray-200 */
+            position: relative;
+            flex: 1;
+        }
+        #classroom {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            width: 100%; height: 100%; position: absolute; top: 0; left: 0;
+            overflow: hidden; min-width: 300px; min-height: 300px;
+        }
+        .desk {
+            width: 100px; height: 60px; cursor: grab; position: absolute;
+            user-select: none; touch-action: none; transition: transform 0.1s ease-out, box-shadow 0.1s ease-out, background-color 0.2s, border-color 0.2s;
+            background-color: #bfdbfe; border: 2px solid #93c5fd; border-radius: 0.375rem;
+            display: flex; align-items: center; justify-content: center; padding: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); transform-origin: center center;
+        }
+        .desk.dragging { cursor: grabbing; opacity: 0.85; z-index: 1000; box-shadow: 0 10px 20px rgba(0,0,0,0.2); background-color: #93c5fd; border-color: #374151; }
+        .desk.selected { border-color: #fbbf24; box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.5); z-index: 999; }
+        .desk.thin { padding: 0; }
+        .desk .desk-name-display {
+            pointer-events: none; position: absolute; left: 50%; top: 50%;
+            transform: translate(-50%, -50%); z-index: 5; text-align: center;
+            font-size: 11px; padding: 0px 5px; border-style: hidden; border-radius: 0.25rem;
+            background-color: rgba(255, 255, 255, 0.7); color: #374151; white-space: nowrap;
+        }
+        .draggable-item {
+            cursor: grab; border: 1px solid #d1d5db; padding: 8px; margin-bottom: 8px;
+            border-radius: 0.375rem; background-color: #f9fafb; text-align: center;
+            font-size: 0.875rem; transition: background-color 0.2s; display: flex;
+            align-items: center; justify-content: center; min-height: 50px;
+        }
+        .draggable-item:hover { background-color: #e5e7eb; }
+        .draggable-item:active { cursor: grabbing; background-color: #d1d5db; }
+        .draggable-item[data-type="round-table"] { border-radius: 50%; width: 60px; height: 60px; padding: 0; margin-left: auto; margin-right: auto; }
+        .draggable-item[data-type="pod-desk"] { background-color: #d1fae5; border-color: #6ee7b7; }
+        #edit-panel label, #room-library label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500; color: #4b5563; }
+        #edit-panel input[type="text"], #edit-panel input[type="number"],
+        #room-library input[type="number"], #room-library input[type="text"] {
+            width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem;
+            font-size: 0.875rem; margin-bottom: 0.75rem; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+        }
+        #edit-panel input:focus, #room-library input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); }
+        #edit-panel .edit-section-title { font-weight: 600; color: #374151; margin-bottom: 0.5rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem; }
+        #edit-panel button, #room-library button { width: 100%; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; transition: background-color 0.2s; }
+        .clicked { background-color: #374151; border-color: #42a5f5; }
+        #nothing { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #nothing.hidden { display: none; }
+        #dropZone { border: 3px dashed #ccc; padding: 30px; text-align: center; color: #aaa; transition: border-color 0.3s, background-color 0.3s; background-color: #f9fafb; border-radius: 0.5rem; cursor: pointer; }
+        #dropZone.dragover { border-color: #3b82f6; background-color: #eff6ff; }
+        #optimizationStatus { min-height: 1.5em; margin-top: 10px; font-style: italic; color: #6b7280; }
+        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.8); display: flex; justify-content: center; align-items: center; z-index: 9999; font-size: 1.2em; color: #333; }
+        #loadingOverlay.hidden, .file.hidden, .build.hidden, .Assign.hidden, .View.hidden { display: none; }
+        #editor-controls button { padding: 0.3rem 0.8rem; font-size: 0.875rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        #optimization-section button { padding: 0.5rem 1.2rem; }
+        #switch-container { display: flex; align-items: center; justify-content: right; }
+        .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; -webkit-transition: .4s; transition: .4s; outline: 2px solid #1f2937; outline-offset: -1px; }
+        .slider:before { position: absolute; content: ""; height: 23px; width: 23px; left: 6px; bottom: 4px; background-color: white; -webkit-transition: .4s; transition: .4s; }
+        input:checked + .slider { background-color: #3b82f6; }
+        input:focus + .slider { box-shadow: 0 0 1px #3b82f6; }
+        input:checked + .slider:before { -webkit-transform: translateX(26px); -ms-transform: translateX(26px); transform: translateX(26px); }
+        .slider.round { border-radius: 34px; }
+        .slider.round:before { border-radius: 50%; }
+        @keyframes copy-flash-anim { 0%, 100% { border-color: #fbbf24; box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.5); } 50% { box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.7); border-color: #3b82f6; } }
+        .desk.copied-flash { animation: copy-flash-anim 0.4s ease-out; }
+        #grid-mode { margin-right: 8px; }
+
+        /* Tutorial Specific Styles */
+        .tutorial-step {
+            margin-bottom: 2rem; /* Increased spacing between steps */
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #e5e7eb; /* border-gray-200 */
+        }
+        .tutorial-step:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .tutorial-step h3 {
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 600; /* font-semibold */
+            color: #374151; /* text-gray-700 */
+            margin-bottom: 0.75rem;
+        }
+         .tutorial-step p, .tutorial-step ul {
+            font-size: 0.95rem; /* Slightly larger than text-sm */
+            color: #4b5563; /* text-gray-600 */
+            line-height: 1.6;
+            margin-bottom: 0.75rem;
+        }
+        .tutorial-step ul {
+            list-style-type: disc;
+            padding-left: 1.5rem; /* Indent list items */
+        }
+        .tutorial-step code {
+            background-color: #e5e7eb; /* bg-gray-200 */
+            padding: 0.1rem 0.4rem;
+            border-radius: 0.25rem; /* rounded-sm */
+            font-size: 0.85em;
+            color: #1f2937; /* text-gray-800 */
+            font-family: monospace;
+        }
+        .tutorial-step img {
+            border: 1px solid #d1d5db; /* border-gray-300 */
+            border-radius: 0.375rem; /* rounded-md */
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            max-width: 100%;
+            height: auto;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .tip {
+            background-color: #eff6ff; /* bg-blue-50 */
+            border-left: 4px solid #3b82f6; /* border-blue-500 */
+            padding: 0.75rem 1rem;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem; /* text-sm */
+            color: #1e40af; /* text-blue-800 */
+        }
+        .tip strong {
+             font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header id="app-header" class="bg-gray-800 text-white flex items-center px-4 shadow-md flex-shrink-0 z-10">
+         <div class="flex items-center">
+             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                 <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+             </svg>
+            <span class="font-bold text-lg">SeatPlanner</span>
+            <span class="ml-4 text-gray-400 font-medium">Google Form Setup Tutorial</span>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-4 md:p-8">
+        <div class="max-w-4xl mx-auto bg-white p-6 md:p-8 rounded-lg shadow-lg">
+
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 border-b pb-3">Setting Up Your Class Seating Preference Form</h1>
+
+            <p class="text-gray-600 mb-6">Follow these steps to create a Google Form similar to the example, which you can use to collect student seating preferences. This data can then be used with SeatPlanner's optimization features.</p>
+
+            <!-- Step 1: Create Form -->
+            <div class="tutorial-step">
+                <h3>Step 1: Create a New Google Form</h3>
+                <p>Go to <a href="https://forms.google.com/" target="_blank" class="text-blue-600 hover:underline">Google Forms</a> and click on "Blank" or the "+" button to create a new form.</p>
+                <img data-gif="static/NewForm.gif" src="static/NewForm.gif" alt="Google Forms create new form screen" class="w-full mx-auto">
+            </div>
+
+            <!-- Step 2: Title and Description -->
+            <div class="tutorial-step">
+                <h3>Step 2: Set the Title and Description</h3>
+                <p>Click on "Untitled form" and change the title to something like <code>Class Seating Preferences</code>.</p>
+                <p>In the "Form description" field below the title, add instructions for your students. Make sure to specify the limit on how many students they can choose. Example:</p>
+                <p class="border p-3 bg-gray-50 rounded text-sm font-mono">
+                    Please select the students you would prefer to sit near. This will help in creating the seating chart. Choose up to <strong>3</strong> students.
+                </p>
+                <img data-gif="static/FormTitle.gif" src="static/FormTitle.gif" alt="Google Form with title and description fields highlighted" class="w-full mx-auto">
+                <div class="tip">
+                    <strong>Tip:</strong> Clearly stating the limit (e.g., 2 or 3) in the description helps students understand the requirement before they start selecting.
+                </div>
+            </div>
+
+            <!-- Step 3: Your Name Question -->
+            <div class="tutorial-step">
+                <h3>Step 3: Add the "Your Name" Question</h3>
+                <p>The first question should allow students to identify themselves.</p>
+                <ul>
+                    <li>Click on the first "Untitled Question".</li>
+                    <li>Change the question text to <code>Your Name</code>.</li>
+                    <li>Change the question type from "Multiple choice" to "Dropdown".</li>
+                    <li>In the "Option 1" field, start adding your students' names. Add each student's name as a separate option.</li>
+                    <li>Toggle the "Required" switch at the bottom right of the question box to ON.</li>
+                </ul>
+                <img data-gif="static/YourName.gif" src="static/YourName.gif" alt="Google Form Your Name dropdown question setup" class="w-full mx-auto">
+                <div class="tip">
+                    <strong>Data Prep:</strong> You'll need your class list ready to paste or type the names into the dropdown options. Using a dropdown ensures consistent naming.
+                </div>
+            </div>
+
+            <!-- Step 4: Preferences Question -->
+            <div class="tutorial-step">
+                <h3>Step 4: Add the "Who would you like to sit near?" Question</h3>
+                <p>This question allows students to select their preferred seating partners.</p>
+                <ul>
+                    <li>Click the "+" button in the floating toolbar on the right to add a new question.</li>
+                    <li>Change the question text to <code>Who would you like to sit near? (Select all that apply)</code>.</li>
+                    <li>Change the question type to "Checkboxes".</li>
+                    <li>Similar to the "Your Name" question, add your students' names as options here. Each name should be a separate option.</li>
+                    <li><strong>Important:</strong> Set Response Validation to limit the number of selections.
+                        <ul>
+                            <li>Click the three vertical dots (⋮) in the bottom right of the question box.</li>
+                            <li>Select "Response validation".</li>
+                            <li>Set the validation rules to: "Select at most".</li>
+                            <li>Enter the maximum number of students they can choose (e.g., <code>3</code>) in the "Number" field.</li>
+                            <li>(Optional) Add custom error text like <code>Please select no more than 3 students.</code></li>
+                        </ul>
+                    </li>
+                     <li>Consider toggling the "Required" switch ON if you want every student to provide input, even if it's just selecting fewer than the maximum.</li>
+                </ul>
+                <img data-gif="static/SitNear.gif" src="static/SitNear.gif" alt="Google Form Preferences checkboxes question setup" class="w-full mx-auto">
+                <img data-gif="static/Restrict.gif" src="static/Restrict.gif" alt="Google Form response validation settings for checkboxes" class="w-full mx-auto">
+                <div class="tip">
+                    <strong>Self-Selection:</strong> Students might select themselves in this list. While Google Forms doesn't have a built-in way to prevent this easily based on the first question's answer, you can remind them in the instructions not to select their own name, or simply ignore self-selections when processing the data later. For example, SeatPlanner will automatically ignore self-selections when optimizing the seating chart.
+                </div>
+            </div>
+
+             <!-- Step 5: Settings (Optional but Recommended) -->
+            <div class="tutorial-step">
+                <h3>Step 5: Adjust Form Settings (Recommended)</h3>
+                <p>Click on the "Settings" tab at the top of the form editor.</p>
+                <ul>
+                    <li>Under "Responses":
+                        <ul>
+                            <li>Consider enabling "Collect email addresses" if you want to automatically record the respondent's email (useful if your students use school Google accounts).</li>
+                            <li>If all students have accounts within your school/organization, enabling "Restrict to users in [Your Organization] and its trusted organizations" can prevent responses from outside.</li>
+                            <li>Also consider enabling "Allow response editing" if you want students to be able to change their preferneces after submission.</li>
+                            <li>Usually, you'll want to keep "Limit to 1 response" enabled to prevent multiple submissions per student. This requires respondents to sign in to Google.</li>
+                        </ul>
+                    </li>
+                </ul>
+                 <img data-gif="static/ResponceSettings.gif" src="static/ResponceSettings.gif" alt="Google Form settings tab" class="w-full mx-auto">
+            </div>
+
+            <!-- Step 6: Share the Form -->
+            <div class="tutorial-step">
+                <h3>Step 6: Share Your Form</h3>
+                <p>Once your form is ready:</p>
+                <ul>
+                    <li>Click the "Send" button in the top right corner.</li>
+                    <li>Go to the link tab (🔗).</li>
+                    <li>You can shorten the URL if desired.</li>
+                    <li>Click "Copy" and share this link with your students (e.g., via email, Google Classroom, or your class website).</li>
+                </ul>
+                 <img data-gif="static/SendForm.gif" src="static/SendForm.gif" alt="Google Form send dialog with link option highlighted" class="w-full mx-auto">
+            </div>
+
+            <!-- Conclusion -->
+            <div class="mt-8 pt-6 border-t border-gray-300">
+                <h2 class="text-xl font-semibold text-gray-800 mb-3">Next Steps</h2>
+                <p class="text-gray-600 mb-4">After collecting responses, you can view them in the "Responses" tab of your Google Form. You can also link the responses to a Google Sheet by clicking the green Sheet icon in the Responses tab. This spreadsheet format (especially if exported as CSV) can be easily used with SeatPlanner's preference import feature.</p>
+                 <div class="tip">
+                     <strong>Data Export:</strong> For SeatPlanner, exporting the Google Sheet responses to a CSV file is often the easiest way to get the data ready for import. Ensure the columns match the expected format ('Name', 'Preferences').
+                 </div>
+            </div>
+
+        </div>
+    </main>
+
+     <!-- Simple Footer -->
+    <footer class="text-center p-4 text-sm text-gray-500 mt-8 flex-shrink-0">
+        SeatPlanner Tutorial © 2025
+    </footer>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+    const gifs = document.querySelectorAll("img[data-gif]");
+    const observerOptions = {
+        threshold: 0.75
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            const img = entry.target;
+            const gifSrc = img.dataset.gif;
+            if (entry.intersectionRatio >= 0.75) {
+                // Append a query parameter to force a reload
+                const timestamp = new Date().getTime();
+                img.src = gifSrc + "?reload=" + timestamp;
+            }
+        });
+    }, observerOptions);
+
+    gifs.forEach(gif => {
+        observer.observe(gif);
+    });
+});
+    </script>
+</body>
+</html>
