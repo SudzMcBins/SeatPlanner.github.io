@@ -61,6 +61,67 @@ document.addEventListener('DOMContentLoaded', () => {
         view: document.querySelector('.view'),
     };
 
+
+    const plannyEyes = document.querySelectorAll('.planny-eye');
+    const plannyArmRight = document.getElementById('planny-arm-right'); // Get the right arm
+    const plannyPencil = document.getElementById('planny-pencil'); // Get the pencil
+
+    function blink() {
+        if (plannyEyes.length === 0) return;
+
+        plannyEyes.forEach(eye => eye.classList.add('blinking'));
+        setTimeout(() => {
+            plannyEyes.forEach(eye => eye.classList.remove('blinking'));
+        }, 150);
+    }
+
+    function spinPencil() {
+        if (!plannyPencil || plannyPencil.classList.contains('spinning')) return; // Don't spin if already spinning
+
+        plannyPencil.classList.add('spinning');
+        plannyArmRight.classList.add('spinning'); // Add spinning class to the arm
+
+        // Remove class after animation finishes to allow re-triggering
+        plannyPencil.addEventListener('animationend', () => {
+            plannyPencil.classList.remove('spinning');
+            plannyArmRight.classList.remove('spinning'); // Remove spinning class from the arm
+        }, { once: true }); // Important: use { once: true }
+    }
+
+    function scheduleNextIdleAction() {
+        // Schedule next blink
+        const nextBlinkTime = Math.random() * 4000 + 2000; // Blink every 2-6 seconds
+        setTimeout(blink, nextBlinkTime);
+
+        // Try to schedule a pencil spin
+        // e.g., 30% chance to spin in the next 3-8 seconds
+        if (Math.random() < 0.25) {
+            const nextSpinDelay = Math.random() * 25000 + 15000;
+            setTimeout(spinPencil, nextSpinDelay);
+        }
+
+        // Call this function again to loop idle actions
+        const nextIdleCheck = Math.random() * 2000 + 1000; // Check for actions every 1-3 seconds
+        setTimeout(scheduleNextIdleAction, nextIdleCheck);
+    }
+
+    const nothingPanel = document.getElementById('nothing');
+    if (nothingPanel && !nothingPanel.classList.contains('hidden')) {
+       // Initial actions
+       blink(); // Start with a blink
+       scheduleNextIdleAction(); // Start the idle action loop
+    }
+
+    // Optional: If #nothing panel can be shown/hidden dynamically,
+    // you might want to restart blinking and idle actions when it becomes visible.
+
+
+    // Optional: If #nothing panel can be shown/hidden dynamically,
+    // you might want to restart blinking when it becomes visible.
+    // For example, if you use a MutationObserver or have a function
+    // that shows #nothing, call scheduleNextBlink() from there.
+    
+
     function showControls(tabName) {
         showPanel('nothing') // Default to showing 'nothing' panel when changing tabs
         Object.values(controlDivs).forEach(div => div.classList.add('hidden'));
@@ -1096,6 +1157,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  // student_order is an array of student names in the order of chairElements
                 if (resultJs.student_order.length === chairElements.length || resultJs.student_order.length === studentsFromCsv.length) {
                     resultJs.student_order.forEach((studentName, chairIndex) => {
+                        console.log(`Assigning student ${studentName} to chair index ${chairIndex}`);
                         if (chairIndex < chairElements.length) {
                             const chair = chairElements[chairIndex];
                             chair.dataset.name = studentName || "Empty"; // Assign name or "Empty"
