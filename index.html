@@ -146,6 +146,255 @@
         #dropZone {
             cursor: pointer;
         }
+
+
+
+
+        /* --- Planny Mascot Styles --- */
+        #planny-mascot {
+            width: 100px; /* Adjust size as needed */
+            height: 120px; /* Adjust size as needed */
+            /* For centering if #nothing doesn't handle it fully */
+            /* margin: 20px auto; */
+            animation: planny-bob 3s ease-in-out infinite;
+        }
+
+        #planny-body {
+            width: 100%;
+            height: 100px; /* Main body height */
+            background-color: #60a5fa; /* A nice blue, similar to Tailwind's blue-400 */
+            border-radius: 15px;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            /* Subtle blueprint grid */
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 10px 10px;
+        }
+
+        .planny-eye {
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .planny-eye.left {
+            left: 20px;
+        }
+
+        .planny-eye.right {
+            right: 20px;
+        }
+
+        .planny-pupil {
+            width: 8px;
+            height: 8px;
+            background-color: #374151; /* dark gray */
+            border-radius: 50%;
+            transition: transform 0.2s ease-out; /* For smooth movement if you add it */
+        }
+
+        /* Blinking state for eyes (controlled by JS) */
+        .planny-eye.blinking .planny-pupil {
+            transform: scaleY(0.1) translateY(3px); /* Squashes pupil for blink */
+            height: 6px; /* Slightly adjust during blink */
+        }
+        /* Alternative blink: hide pupil */
+        /* .planny-eye.blinking .planny-pupil {
+            opacity: 0;
+        } */
+
+
+        #planny-mouth {
+            width: 30px;
+            height: 15px;
+            border: 3px solid #374151;
+            border-top-color: transparent;
+            border-left-color: transparent;
+            border-right-color: transparent;
+            border-radius: 0 0 30px 30px / 0 0 15px 15px; /* Creates a smile curve */
+            position: absolute;
+            bottom: 33px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #planny-clipboard {
+            width: 35px; /* Slightly smaller to fit arm better */
+            height: 45px;
+            background-color: #e5e7eb;
+            position: absolute;
+            /* bottom: -15px;  REMOVE or adjust */
+            /* left: 55%; REMOVE or adjust */
+            bottom: -5px; /* Position at the 'hand' part of the arm */
+            left: -8px; /* Center it on the arm or slightly off */
+            border-radius: 4px;
+            border: 2px solid #9ca3af;
+            transform: rotate(-15deg); /* Adjust rotation to look like it's held */
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.05);
+            /* transform-origin for its own rotation is fine */
+        }
+        /* Keep #planny-clipboard-paper and #planny-clipboard-clip as they were, they are relative to #planny-clipboard */
+
+        #planny-clipboard-paper {
+            width: 80%;
+            height: 70%;
+            background-color: white;
+            position: absolute;
+            top: 15%;
+            left: 10%;
+            border-radius: 3px;
+        }
+         #planny-clipboard-clip {
+            width: 50%;
+            height: 8px;
+            background-color: #6b7280; /* darker gray */
+            position: absolute;
+            top: 5px;
+            left: 25%;
+            border-radius: 2px;
+        }
+
+
+        /* --- Planny Animations --- */
+        @keyframes planny-bob {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-8px); /* How much Planny bobs up */
+            }
+        }
+
+        .planny-arm {
+            width: 20px; /* Arm thickness */
+            height: 55px; /* Arm length */
+            background-color: #60a5fa; /* Same as body, or a slightly darker/lighter shade */
+            border: 2px solid #3b82f6; /* A slightly darker blue for outline */
+            border-radius: 10px;
+            position: absolute;
+            z-index: -1; /* Behind the body slightly if overlapping directly */
+            transform-origin: top center; /* For potential future arm animations */
+        }
+
+        #planny-arm-left {
+            top: 40px; /* Adjust to connect nicely to body */
+            left: -3px; /* Overlap body slightly or position next to it */
+            transform: rotate(25deg);
+            position: absolute;
+        }
+
+        #planny-arm-right {
+            top: 40px; /* Adjust to connect nicely to body */
+            right: 3px; /* Overlap body slightly or position next to it */
+            transform: rotate(-25deg);
+        }
+
+        #planny-pencil {
+            width: 8px; /* Pencil thickness */
+            height: 50px; /* Pencil length */
+            position: absolute;
+            bottom: -12px; /* Position at the 'hand' part of the arm */
+            left: 90%;
+            transform: translateX(-50%) rotate(-135deg); /* Initial angle */
+            transform-origin: center center; /* Crucial for spinning */
+        }
+
+        .pencil-part {
+            position: absolute;
+            width: 100%;
+        }
+
+        #pencil-eraser {
+            height: 10%; /* Eraser part */
+            background-color: #f472b6; /* Pink */
+            top: 0;
+            border-radius: 0 0 2px 2px;
+            z-index: 1; /* On top of body and tip */
+        }
+
+        #pencil-body {
+            height: 70%; /* Main body of pencil */
+            background-color: #facc15; /* Yellow */
+            top: 0;
+            border-radius: 2px 2px 0 0;
+            z-index: 0;
+        }
+
+        #pencil-tip {
+            height: 20%; /* Tip part */
+            background-color: #a1a1aa; /* Grey for lead, or #374151 for darker */
+            bottom: 10%; /* Below body, above eraser (conceptually) */
+            clip-path: polygon(50% 100%, 0 0, 100% 0); /* Triangle shape */
+            z-index: 0; /* On top of body and eraser */
+        }
+         /* A more detailed tip: */
+        #pencil-tip::before { /* Wood part */
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: #f3d9a1; /* Light wood color */
+            clip-path: polygon(50% 100%, 0 0, 100% 0);
+            z-index: 1;
+        }
+        #pencil-tip::after { /* Lead part */
+            content: '';
+            position: absolute;
+            width: 40%;
+            height: 50%;
+            background-color: #374151; /* Dark grey lead */
+            bottom: 0;
+            left: 30%;
+            clip-path: polygon(50% 100%, 0 0, 100% 0);
+            z-index: 2;
+        }
+
+        @keyframes planny-arm-right {
+            0% {
+                transform: rotate(-25deg);
+            }
+            50% {
+                transform: rotate(-75deg);
+            }
+            100% {
+                transform: rotate(-25deg);
+            }
+        }
+        
+
+        @keyframes planny-pencil-spin {
+            0% {
+                transform: translateX(-50%) rotate(0deg); /* Start from its resting rotation */
+            }
+            100% {
+                transform: translateX(-50%) rotate(585deg); /* End at resting rotation */
+            }
+        }
+        /* Or a simpler continuous spin: */
+        /* @keyframes planny-pencil-spin {
+            from { transform: translateX(-50%) rotate(25deg); }
+            to   { transform: translateX(-50%) rotate(385deg); } /* 360 + 25 */
+        /* } */
+
+
+        #planny-pencil.spinning {
+            /* Adjust duration and timing function as you like */
+            animation: planny-pencil-spin 0.8s ease-in-out 1;
+        }
+
+        #planny-arm-right.spinning {
+            animation: planny-arm-right 0.8s ease-in-out 1;
+        }
+
+
     </style>
 </head>
 <body class="bg-gray-100 h-screen flex flex-col"> <!-- Added overflow-hidden to body -->
@@ -215,21 +464,42 @@
         <aside id="side-panel" class="w-full md:w-64 bg-gray-200 border-b md:border-b-0 md:border-r border-gray-300 p-4 overflow-y-auto flex-shrink-0 h-auto md:h-full">
             <!-- Side panel content remains the same, ensure it scrolls vertically if needed -->
             <div id="nothing">
+                <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.99/build/spline-viewer.js"></script>
+                <spline-viewer url="https://prod.spline.design/i8mC77GFdJuOr5xJ/scene.splinecode"></spline-viewer>
                 <h1 class="font-semibold text-gray-700 mb-3 border-b pb-2">Tools will apear here</h1>
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    class="flex justify-center items-center h-16 w-16 text-gray-500 mb-4"
-                >
-                   <path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" />
-                </svg>
+                <!-- Planny Mascot HTML Start -->
+                <div id="planny-mascot" class="relative mt-4">
+                    <div id="planny-body">
+                        <!-- Eyes and Mouth (keep as they were) -->
+                        <div class="planny-eye left">
+                            <div class="planny-pupil"></div>
+                        </div>
+                        <div class="planny-eye right">
+                            <div class="planny-pupil"></div>
+                        </div>
+                        <div id="planny-mouth"></div>
+
+                        <!-- Left Arm (holding clipboard) -->
+                        <div class="planny-arm" id="planny-arm-left">
+                            <div id="planny-clipboard">
+                                <div id="planny-clipboard-paper"></div>
+                                <div id="planny-clipboard-clip"></div>
+                            </div>
+                        </div>
+
+                        <!-- Right Arm (holding pencil) -->
+                        <div class="planny-arm" id="planny-arm-right">
+                            <div id="planny-pencil">
+                                <div class="pencil-part" id="pencil-eraser"></div>
+                                <div class="pencil-part" id="pencil-body"></div>
+                                <div class="pencil-part" id="pencil-tip"></div>
+                                
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Planny Mascot HTML End -->
+                <p class="text-sm text-gray-600 mt-3">I'm here to help you plan!</p> <!-- Optional extra text -->
             </div>
 
             <div id="room-library">
@@ -373,7 +643,14 @@
     </div>
 
     <!-- Reference the script file (make sure its path is correct) -->
-    <script src="script.js"></script>
+    <script type="importmap">
+        {
+          "imports": {
+            "@splinetool/runtime": "https://cdn.spline.design/runtime.js"
+          }
+        }
+        </script>
+        <script type="module" src="script.js"></script>
 
 </body>
 </html>
